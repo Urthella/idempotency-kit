@@ -89,7 +89,8 @@ for example with a unique constraint in the database.
 
 ## How it's tested
 
-30 tests. The same checks run against Express, over real HTTP, and Hono. They cover replays,
+29 tests, and 5 more for the Redis store that run against a real Redis in CI. The same checks
+run against Express, over real HTTP, and Hono. They cover replays,
 twenty requests at once with one key (the handler runs once, nineteen get 409), a different body,
 a handler that throws, a body written in pieces, scopes, and a client that hangs up mid-request.
 Both stores pass the same contract tests, the Redis one against a real Redis in CI.
