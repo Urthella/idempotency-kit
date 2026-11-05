@@ -1,13 +1,16 @@
-// Real requests through Express (over HTTP) and Hono (through app.request), with the same checks.
+// Real requests through Express and Fastify (over HTTP) and Hono (through app.request), with the
+// same checks.
 
 import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
 import { after, describe, test } from "node:test";
 
 import express from "express";
+import Fastify from "fastify";
 import { Hono } from "hono";
 
 import { idempotency as expressIdempotency } from "../src/express.ts";
+import { idempotency as fastifyIdempotency } from "../src/fastify.ts";
 import { idempotency as honoIdempotency } from "../src/hono.ts";
 import { memoryStore } from "../src/stores.ts";
 
@@ -53,6 +56,33 @@ async function expressApp(): Promise<App> {
   return { send: (path, init) => fetch(base + path, init), runs };
 }
 
+async function fastifyApp(): Promise<App> {
+  const runs = new Map<string, number>();
+  const ran = (name: string) => runs.set(name, (runs.get(name) ?? 0) + 1);
+  const app = Fastify();
+  await app.register(fastifyIdempotency({ store: memoryStore(), scope: (req) => req.headers["x-user"]?.toString() ?? "" }));
+  app.post("/orders", async (req, reply) => {
+    ran("orders");
+    await sleep(50);
+    return reply.code(201).header("x-order", "7").send({ id: 7, item: (req.body as { item: number }).item });
+  });
+  app.post("/chunks", async () => {
+    ran("chunks");
+    return "one,two,three";
+  });
+  app.post("/fails", async () => {
+    ran("fails");
+    throw new Error("boom");
+  });
+  app.get("/orders", async () => {
+    ran("list");
+    return [];
+  });
+  const address = await app.listen({ port: 0, host: "127.0.0.1" });
+  after(() => app.close());
+  return { send: (path, init) => fetch(address + path, init), runs };
+}
+
 async function honoApp(): Promise<App> {
   const runs = new Map<string, number>();
   const ran = (name: string) => runs.set(name, (runs.get(name) ?? 0) + 1);
@@ -88,6 +118,7 @@ const post = (key: string | null, body: unknown = { item: 1 }, headers: Record<s
 
 for (const [name, make] of [
   ["express", expressApp],
+  ["fastify", fastifyApp],
   ["hono", honoApp],
 ] as const) {
   describe(name, () => {

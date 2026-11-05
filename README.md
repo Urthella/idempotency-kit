@@ -2,7 +2,7 @@
 
 [![ci](https://github.com/Urthella/idempotency-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/Urthella/idempotency-kit/actions/workflows/ci.yml)
 
-Idempotency-Key middleware for Express and Hono, following the IETF draft
+Idempotency-Key middleware for Express, Fastify and Hono, following the IETF draft
 ([draft-ietf-httpapi-idempotency-key-header-08](https://datatracker.ietf.org/doc/draft-ietf-httpapi-idempotency-key-header/)).
 A client that retries a payment after a timeout gets the first response back, and the payment
 runs once. Keys live in memory or in Redis.
@@ -28,6 +28,14 @@ import { redisStore } from "./src/stores.ts";
 
 app.use(express.json());
 app.use(idempotency({ store: redisStore(redis), scope: (req) => req.user.id }));
+```
+
+Fastify, registered before the routes it covers:
+
+```ts
+import { idempotency } from "./src/fastify.ts";
+
+await app.register(idempotency({ store: redisStore(redis) }));
 ```
 
 Hono:
@@ -89,14 +97,14 @@ for example with a unique constraint in the database.
 
 ## How it's tested
 
-29 tests, and 5 more for the Redis store that run against a real Redis in CI. The same checks
-run against Express, over real HTTP, and Hono. They cover replays,
-twenty requests at once with one key (the handler runs once, nineteen get 409), a different body,
-a handler that throws, a body written in pieces, scopes, and a client that hangs up mid-request.
+37 tests, and 5 more for the Redis store that run against a real Redis in CI. The same checks
+run against Express and Fastify, over real HTTP, and Hono. They cover replays, twenty requests at
+once with one key (the handler runs once, nineteen get 409), a different body, a handler that
+throws, a body written in pieces, scopes, and, for Express, a client that hangs up mid-request.
 Both stores pass the same contract tests, the Redis one against a real Redis in CI.
 
-To check that the tests can fail, 16 bugs were planted one at a time in the core, the adapters
-and the memory store, and every one was caught. One real bug turned up while writing them: the
+To check that the tests can fail, 19 bugs were planted one at a time in the core, the three
+adapters and the memory store, and every one was caught. One real bug turned up while writing them: the
 Express adapter first freed the key when a client hung up, so a retry would have run the
 handler a second time.
 
@@ -106,7 +114,8 @@ handler a second time.
 - **The memory store** forgets everything on restart, isn't shared between processes, and drops
   expired keys only when they're used again.
 - **The Redis store** has only been run against a single Redis, not a cluster.
-- **Express and Hono only.** Fastify and others would need their own adapter.
+- **Fastify streams aren't replayed.** A route that sends a stream frees its key afterwards, so
+  a retry runs it again.
 
 Claude, Anthropic's AI model, wrote this with Halil Utku Demirtaş directing the work.
 
