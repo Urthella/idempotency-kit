@@ -1,0 +1,23 @@
+{
+  "name": "idempotency-kit",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Idempotency-Key middleware for Express and Hono, following the IETF draft, with memory and Redis stores",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "typecheck": "tsc",
+    "test": "node --test --test-timeout=30000 test/*.test.ts"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^24.19.2",
+    "express": "^5.3.0",
+    "hono": "^4.13.16",
+    "redis": "^5.12.1",
+    "typescript": "^7.0.2"
+  }
+}
